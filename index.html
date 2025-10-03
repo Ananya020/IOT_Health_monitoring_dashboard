@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IoT Health Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <style>
+    body {
+      background: #f8f9fa;
+    }
+    .card {
+      border-radius: 15px;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+    }
+    .alert-box {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .status-on {
+      color: green;
+      font-weight: bold;
+    }
+    .status-off {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+<div class="container my-4">
+  <h1 class="text-center mb-4">🌡️ IoT Health Monitoring Dashboard</h1>
+
+  <div class="row g-4">
+    <!-- Temperature Card -->
+    <div class="col-md-4">
+      <div class="card text-center p-3">
+        <h4>Temperature</h4>
+        <h2 id="temp">--</h2>
+        <p>°C</p>
+      </div>
+    </div>
+
+    <!-- Heart Rate Card -->
+    <div class="col-md-4">
+      <div class="card text-center p-3">
+        <h4>Heart Rate (Raw)</h4>
+        <h2 id="heart">--</h2>
+        <p>BPM (approx raw value)</p>
+      </div>
+    </div>
+
+    <!-- Heating Status Card -->
+    <div class="col-md-4">
+      <div class="card text-center p-3">
+        <h4>Heating Pad</h4>
+        <h2 id="heating" class="status-off">--</h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graphs -->
+  <div class="row g-4 mt-4">
+    <div class="col-md-6">
+      <div class="card p-3">
+        <h5>Temperature Trend</h5>
+        <canvas id="tempChart"></canvas>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card p-3">
+        <h5>Heart Rate Trend</h5>
+        <canvas id="heartChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="row mt-4">
+    <div class="col">
+      <div class="card p-3 text-center">
+        <h4 style="color:#dc3545;">⚠️ Alerts</h4>
+        <p id="alert" class="alert-box">--</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Firebase Config (replace with your values)
+  const firebaseConfig = {
+    apiKey: "YOUR_FIREBASE_API_KEY",
+    authDomain: "your-project-id.firebaseapp.com",
+    databaseURL: "https://your-project-id.firebaseio.com",
+    projectId: "your-project-id",
+    storageBucket: "your-project-id.appspot.com",
+    messagingSenderId: "XXXXXXXXX",
+    appId: "1:XXXXXXXXX:web:XXXXXXXXX"
+  };
+
+  // Init Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // DOM elements
+  const tempEl = document.getElementById("temp");
+  const heartEl = document.getElementById("heart");
+  const heatingEl = document.getElementById("heating");
+  const alertEl = document.getElementById("alert");
+
+  // Chart.js setup
+  const tempCtx = document.getElementById("tempChart").getContext("2d");
+  const heartCtx = document.getElementById("heartChart").getContext("2d");
+
+  const tempChart = new Chart(tempCtx, {
+    type: "line",
+    data: { labels: [], datasets: [{ label: "Temperature (°C)", data: [], borderColor: "blue", fill: false }] },
+    options: { responsive: true, scales: { x: { display: false } } }
+  });
+
+  const heartChart = new Chart(heartCtx, {
+    type: "line",
+    data: { labels: [], datasets: [{ label: "Heart Rate Raw", data: [], borderColor: "red", fill: false }] },
+    options: { responsive: true, scales: { x: { display: false } } }
+  });
+
+  // Firebase listeners
+  db.ref("temperature").on("value", snap => {
+    const val = snap.val();
+    tempEl.innerText = val;
+    addData(tempChart, val);
+  });
+
+  db.ref("heartRateRaw").on("value", snap => {
+    const val = snap.val();
+    heartEl.innerText = val;
+    addData(heartChart, val);
+  });
+
+  db.ref("heatingStatus").on("value", snap => {
+    const on = snap.val();
+    heatingEl.innerText = on ? "ON" : "OFF";
+    heatingEl.className = on ? "status-on" : "status-off";
+  });
+
+  db.ref("alerts").on("value", snap => {
+    alertEl.innerText = snap.val();
+  });
+
+  // Helper function for live chart updates
+  function addData(chart, value) {
+    chart.data.labels.push("");
+    chart.data.datasets[0].data.push(value);
+    if (chart.data.labels.length > 20) {
+      chart.data.labels.shift();
+      chart.data.datasets[0].data.shift();
+    }
+    chart.update();
+  }
+</script>
+</body>
+</html>
